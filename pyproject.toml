@@ -1,0 +1,43 @@
+[tool.poetry]
+name = "idcheck-qa-candidate"
+version = "0.1.0"
+description = "Technical assessment starter project for an identity-verification (KYC/camera capture) test automation exercise. See README.md for the brief."
+authors = ["QA Engineering <qa@example.com>"]
+readme = "README.md"
+packages = [{ include = "idcheck_qa", from = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+requests = "^2.31"
+selenium = "^4.21"
+webdriver-manager = "^4.0"
+flask = "^3.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2"
+pytest-html = "^4.1"
+python-dotenv = "^1.0"
+# Add whatever additional pytest plugins or other tooling you need, e.g.:
+# pytest-xdist = "^3.6"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+# project root on sys.path so `mock_server` and `tests.support` are importable
+pythonpath = ["."]
+addopts = "-ra --strict-markers --strict-config"
+xfail_strict = true
+markers = [
+    "api: API-level tests (no browser)",
+    "ui: browser tests driven through Selenium Page Objects",
+    "e2e: full user journey combining API setup and browser",
+    "smoke: minimal fast subset proving the main flow works",
+    "negative: invalid input, unknown resources, out-of-order calls",
+    "security: injection / data-exposure checks",
+    "known_defect: documents a product defect (paired with a strict xfail)",
+]
+log_level = "INFO"

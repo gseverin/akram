@@ -1,0 +1,480 @@
+<title>Guide identity-check-qa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: two columns on desktop (sticky table of contents + ~720px reading column), one column on phones. Same visual family as the test report. */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --ink: #16202e;
+  --muted: #5a6678;
+  --line: #dde3eb;
+  --accent: #2d4e94;
+  --accent-soft: #e6ecf7;
+  --code-bg: #eef2f7;
+  --pass: #1d7a4a;  --pass-soft: #e3f3ea;
+  --warn: #a8610a;  --warn-soft: #fbefdc;
+  --fail: #b3261e;  --fail-soft: #fbe5e3;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10151d; --surface: #171e29; --ink: #e4e9f1; --muted: #98a3b4; --line: #2a3442;
+    --accent: #8eaaf0; --accent-soft: #1d2a44; --code-bg: #1c2532;
+    --pass: #5cc98c; --pass-soft: #15301f; --warn: #f0b25a; --warn-soft: #33240f;
+    --fail: #f2847b; --fail-soft: #3a1714;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10151d; --surface: #171e29; --ink: #e4e9f1; --muted: #98a3b4; --line: #2a3442;
+  --accent: #8eaaf0; --accent-soft: #1d2a44; --code-bg: #1c2532;
+  --pass: #5cc98c; --pass-soft: #15301f; --warn: #f0b25a; --warn-soft: #33240f;
+  --fail: #f2847b; --fail-soft: #3a1714;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.65 var(--font-body); padding-inline: 16px; padding-block: 0 72px; }
+.page { max-width: 1040px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; }
+@media (max-width: 820px) { .page { grid-template-columns: minmax(0, 1fr); gap: 24px; } }
+
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h2 { font-size: 1.5rem; font-weight: 600; }
+h3 { font-size: 1.05rem; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--accent); }
+code { font-family: var(--font-mono); font-size: .86em; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+.eyebrow { font: 600 .72rem/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.lede { color: var(--muted); }
+
+/* TOC */
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; padding-top: 40px; display: grid; gap: 10px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: toc; }
+nav.toc a { display: block; text-decoration: none; color: var(--muted); font-size: .9rem; padding: 4px 10px; border-radius: 5px; border-left: 2px solid transparent; }
+nav.toc a:hover { color: var(--ink); background: var(--surface); }
+nav.toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (max-width: 820px) {
+  nav.toc { position: static; padding-top: 0; order: 2; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+  nav.toc ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+main { display: grid; gap: 56px; min-width: 0; }
+section { display: grid; gap: 16px; min-width: 0; scroll-margin-top: 24px; }
+
+/* Header */
+header { padding-top: 40px; display: grid; gap: 16px; }
+header h1 { font-size: clamp(1.9rem, 5vw, 2.7rem); font-weight: 700; }
+.mrz { font: 500 clamp(.6rem, 1.8vw, .86rem)/1.5 var(--font-mono); letter-spacing: .14em; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; overflow-x: auto; white-space: pre; }
+.quick { background: var(--accent-soft); border-radius: 8px; padding: 16px 18px; display: grid; gap: 10px; }
+.quick strong { font-family: var(--font-display); font-size: 1.1rem; }
+
+/* Commands */
+.cmd { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+.cmd pre { margin: 0; padding: 14px 16px; padding-right: 84px; overflow-x: auto; font: .85rem/1.65 var(--font-mono); }
+.cmd .c { color: var(--muted); }
+.cmd button.copy {
+  position: absolute; top: 8px; right: 8px; font: 500 .75rem/1 var(--font-body); color: var(--muted);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 6px 10px; cursor: pointer;
+}
+.cmd button.copy:hover { color: var(--ink); }
+.cmd button.copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Steps (real sequence) */
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; counter-reset: step; }
+ol.steps > li { counter-increment: step; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 4px 14px; }
+ol.steps > li::before {
+  content: counter(step); grid-row: span 3; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: var(--surface); font: 600 .85rem/28px var(--font-mono); text-align: center;
+}
+ol.steps > li > * { grid-column: 2; }
+
+/* Tables */
+.table-scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 .72rem/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: none; }
+td code { white-space: nowrap; }
+
+.chip { display: inline-block; font: 600 .7rem/1 var(--font-mono); letter-spacing: .06em; padding: 5px 8px; border-radius: 4px; white-space: nowrap; }
+.chip.pass { color: var(--pass); background: var(--pass-soft); }
+.chip.warn { color: var(--warn); background: var(--warn-soft); }
+.chip.fail { color: var(--fail); background: var(--fail-soft); }
+
+.note { border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; font-size: .93rem; }
+.note.warn { background: var(--warn-soft); }
+.note.info { background: var(--accent-soft); }
+.note b.t { font-family: var(--font-display); font-size: 1rem; }
+
+/* Flow diagram */
+.flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.flow > div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.flow .who { font: 600 .68rem/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.flow .what { font-weight: 500; }
+.flow code { font-size: .78em; overflow-wrap: anywhere; white-space: normal; }
+@media (max-width: 620px) { .flow { grid-template-columns: minmax(0, 1fr); } }
+
+.tree { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font: .84rem/1.6 var(--font-mono); margin: 0; }
+.tree .c { color: var(--muted); }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+details + details { margin-top: -6px; }
+summary { cursor: pointer; padding: 12px 16px; font-weight: 500; list-style-position: inside; }
+summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+details > div { padding: 0 16px 16px; display: grid; gap: 10px; }
+footer { color: var(--muted); font-size: .84rem; border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+
+<div class="page">
+
+<nav class="toc" aria-label="Sommaire">
+  <span class="eyebrow">Sommaire</span>
+  <ol>
+    <li><a href="#apercu">Aperçu</a></li>
+    <li><a href="#installation">Installation</a></li>
+    <li><a href="#tests">Lancer les tests</a></li>
+    <li><a href="#resultats">Lire les résultats</a></li>
+    <li><a href="#application">Utiliser l'application</a></li>
+    <li><a href="#config">Configuration</a></li>
+    <li><a href="#ajouter">Ajouter un test</a></li>
+    <li><a href="#projet">Organisation</a></li>
+    <li><a href="#problemes">Problèmes fréquents</a></li>
+    <li><a href="#securite">Sécurité</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header>
+  <div class="eyebrow">Guide d'utilisation</div>
+  <h1>Guide identity-check-qa</h1>
+  <p class="lede">Installer le projet, lancer les tests automatisés, lire les résultats et faire évoluer la suite.</p>
+  <div class="mrz" aria-hidden="true">GUIDE&lt;IDCHECK&lt;QA&lt;&lt;PYTEST&lt;SELENIUM&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+VENV&lt;&lt;POETRY&lt;&lt;CHROME&lt;&lt;FR&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+  <div class="quick">
+    <strong>Démarrage rapide</strong>
+    <p>Le projet est déjà installé sur cette machine dans <code>/home/gseverin/lab/akram</code>. Depuis ce dossier :</p>
+    <div class="cmd"><pre>cd /home/gseverin/lab/akram
+.venv/bin/pytest</pre></div>
+    <p>Résultat attendu : <code>37 passed, 5 xfailed</code>.</p>
+  </div>
+</header>
+
+<section id="apercu" aria-labelledby="h-apercu">
+  <div class="eyebrow">Aperçu</div>
+  <h2 id="h-apercu">À quoi sert ce projet</h2>
+  <p>C'est l'exercice technique <b>identity-check-qa</b> : une fausse application de vérification d'identité (KYC), et une suite de tests automatisés qui la contrôle. Les tests vérifient le parcours au niveau de l'API et dans un vrai navigateur Chrome.</p>
+  <div class="flow" role="list" aria-label="Parcours de vérification">
+    <div role="listitem"><span class="who">Application cliente</span><span class="what">Crée une session</span><code>POST /api/sessions</code></div>
+    <div role="listitem"><span class="who">Utilisateur</span><span class="what">Envoie sa pièce</span><code>/verify/&lt;id&gt;</code></div>
+    <div role="listitem"><span class="who">Serveur</span><span class="what">Rend sa décision</span><code>VERIFIED · REJECTED</code></div>
+    <div role="listitem"><span class="who">Résultat</span><span class="what">API et page web</span><code>/api/sessions/&lt;id&gt;</code><code>/result/&lt;id&gt;</code></div>
+  </div>
+  <div class="note info">
+    <b class="t">L'application n'analyse pas la pièce</b>
+    <p>La décision dépend uniquement du nom du fichier envoyé : s'il contient <code>invalid</code> (majuscules ou minuscules), la pièce est refusée ; sinon elle est acceptée.</p>
+  </div>
+</section>
+
+<section id="installation" aria-labelledby="h-install">
+  <div class="eyebrow">Installation</div>
+  <h2 id="h-install">Installer sur une nouvelle machine</h2>
+  <p class="lede">À faire une seule fois. Sur la machine actuelle, c'est déjà fait.</p>
+  <ol class="steps">
+    <li>
+      <h3>Vérifier les prérequis</h3>
+      <p>Python 3.11 ou plus récent, et Google Chrome.</p>
+      <div class="cmd"><pre>python3 --version
+google-chrome --version</pre></div>
+    </li>
+    <li>
+      <h3>Installer Poetry</h3>
+      <p>Poetry est l'outil qui gère les librairies du projet.</p>
+      <div class="cmd"><pre>pipx install poetry
+<span class="c"># ou, sans pipx :</span>
+python3 -m pip install --user poetry</pre></div>
+    </li>
+    <li>
+      <h3>Installer le projet</h3>
+      <p>Poetry crée le dossier <code>.venv</code> dans le projet et y installe toutes les librairies (Flask, Selenium, pytest…).</p>
+      <div class="cmd"><pre>cd identity-check-qa
+poetry install</pre></div>
+    </li>
+    <li>
+      <h3>Optionnel : créer le fichier de configuration</h3>
+      <p>Les valeurs par défaut fonctionnent. Ce fichier sert seulement à les changer.</p>
+      <div class="cmd"><pre>cp .env.example .env</pre></div>
+    </li>
+  </ol>
+  <div class="note info">
+    <b class="t">Activer le .venv (facultatif)</b>
+    <p>Après <code>source .venv/bin/activate</code>, on peut taper <code>pytest</code> au lieu de <code>.venv/bin/pytest</code>. La commande <code>deactivate</code> en sort.</p>
+  </div>
+</section>
+
+<section id="tests" aria-labelledby="h-tests">
+  <div class="eyebrow">Utilisation</div>
+  <h2 id="h-tests">Lancer les tests</h2>
+  <p>Inutile de démarrer le serveur avant : les tests le démarrent eux-mêmes et l'arrêtent à la fin.</p>
+  <div class="cmd"><pre>.venv/bin/pytest</pre></div>
+  <h3>Lancer une partie des tests</h3>
+  <p>Chaque test porte des étiquettes (marqueurs). L'option <code>-m</code> choisit lesquels lancer.</p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Commande</th><th>Ce qui est lancé</th></tr></thead>
+      <tbody>
+        <tr><td><code>.venv/bin/pytest -m smoke</code></td><td>Les parcours principaux : pièce acceptée et pièce refusée, API et navigateur</td></tr>
+        <tr><td><code>.venv/bin/pytest -m api</code></td><td>Tests API seulement, sans navigateur (le plus rapide)</td></tr>
+        <tr><td><code>.venv/bin/pytest -m ui</code></td><td>Tests dans Chrome</td></tr>
+        <tr><td><code>.venv/bin/pytest -m e2e</code></td><td>Parcours complets de bout en bout</td></tr>
+        <tr><td><code>.venv/bin/pytest -m negative</code></td><td>Cas d'erreur : session inconnue, envoi sans fichier…</td></tr>
+        <tr><td><code>.venv/bin/pytest -m security</code></td><td>Contrôles de sécurité (injection HTML)</td></tr>
+        <tr><td><code>.venv/bin/pytest -m "not known_defect"</code></td><td>Tout sauf les défauts connus de l'application</td></tr>
+        <tr><td><code>.venv/bin/pytest -k specimen</code></td><td>Les tests dont le nom contient « specimen » (carte d'identité spécimen)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Options utiles</h3>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Commande</th><th>Effet</th></tr></thead>
+      <tbody>
+        <tr><td><code>.venv/bin/pytest -v</code></td><td>Affiche le nom et le résultat de chaque test</td></tr>
+        <tr><td><code>IDCHECK_HEADLESS=false .venv/bin/pytest -m e2e</code></td><td>Ouvre Chrome à l'écran pour voir les tests se dérouler</td></tr>
+        <tr><td><code>.venv/bin/pytest --html=htmlreport.html --self-contained-html</code></td><td>Produit un rapport HTML à ouvrir avec <code>xdg-open htmlreport.html</code></td></tr>
+        <tr><td><code>.venv/bin/pytest -x</code></td><td>S'arrête au premier échec</td></tr>
+        <tr><td><code>.venv/bin/pytest tests/api/test_sessions.py</code></td><td>Lance un seul fichier de tests</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="resultats" aria-labelledby="h-res">
+  <div class="eyebrow">Résultats</div>
+  <h2 id="h-res">Lire les résultats</h2>
+  <p>À la fin, pytest affiche un résumé comme celui-ci :</p>
+  <div class="cmd"><pre>tests/api/test_document_submission.py ..........xxx.....
+tests/api/test_sessions.py ..........
+tests/ui/test_upload_page.py xx.
+tests/ui/test_verification_flow.py ..........
+======== 37 passed, 5 xfailed in 4.52s ========</pre></div>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Statut</th><th>Symbole</th><th>Signification</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td><span class="chip pass">PASSED</span></td><td><code>.</code></td><td>Le comportement attendu est constaté.</td><td>Rien à faire.</td></tr>
+        <tr><td><span class="chip warn">XFAIL</span></td><td><code>x</code></td><td>Défaut connu de l'application : le test échoue comme prévu et prouve le défaut.</td><td>Rien à faire. La raison s'affiche dans le résumé.</td></tr>
+        <tr><td><span class="chip fail">FAILED</span></td><td><code>F</code></td><td>Un comportement a changé ou une régression est apparue.</td><td>Lire le détail affiché au-dessus du résumé.</td></tr>
+        <tr><td><span class="chip fail">ERROR</span></td><td><code>E</code></td><td>Le test n'a pas pu démarrer (serveur, navigateur…).</td><td>Voir <a href="#problemes">Problèmes fréquents</a>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note warn">
+    <b class="t">Si un XFAIL devient FAILED</b>
+    <p>Un défaut a été corrigé dans l'application : le test passe alors qu'il était censé échouer (XPASS). Supprimer les lignes <code>@pytest.mark.known_defect</code> et <code>@pytest.mark.xfail(...)</code> au-dessus de ce test.</p>
+  </div>
+  <p>Le rapport de la dernière campagne est dans <code>test_report.html</code>, à la racine du projet.</p>
+</section>
+
+<section id="application" aria-labelledby="h-app">
+  <div class="eyebrow">Exploration manuelle</div>
+  <h2 id="h-app">Utiliser l'application à la main</h2>
+  <ol class="steps">
+    <li>
+      <h3>Démarrer le serveur</h3>
+      <p>Il reste actif dans ce terminal. <code>Ctrl+C</code> l'arrête.</p>
+      <div class="cmd"><pre>.venv/bin/python -m mock_server.app</pre></div>
+    </li>
+    <li>
+      <h3>Créer une session (dans un second terminal)</h3>
+      <div class="cmd"><pre>curl -X POST http://127.0.0.1:5005/api/sessions
+<span class="c"># {"session_id": "a1b2c3d4e5f6", "status": "PENDING"}</span></pre></div>
+    </li>
+    <li>
+      <h3>Envoyer une pièce dans le navigateur</h3>
+      <p>Ouvrir <code>http://127.0.0.1:5005/verify/a1b2c3d4e5f6</code> (avec l'identifiant reçu), choisir un fichier de <code>tests/fixtures/</code>, puis cliquer sur <b>Submit capture</b>. La page de résultat s'affiche.</p>
+    </li>
+    <li>
+      <h3>Ou envoyer la pièce par l'API</h3>
+      <div class="cmd"><pre>curl -X POST http://127.0.0.1:5005/api/sessions/a1b2c3d4e5f6/document \
+  -F "document=@tests/fixtures/specimen_cni_recto.jpg"
+
+curl http://127.0.0.1:5005/api/sessions/a1b2c3d4e5f6</pre></div>
+    </li>
+  </ol>
+  <h3>Pièces disponibles</h3>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Fichier (dans <code>tests/fixtures/</code>)</th><th>Contenu</th><th>Résultat</th></tr></thead>
+      <tbody>
+        <tr><td><code>valid_id.jpg</code></td><td>Fichier factice</td><td><span class="chip pass">VERIFIED</span></td></tr>
+        <tr><td><code>invalid_id.jpg</code></td><td>Fichier factice</td><td><span class="chip fail">REJECTED</span></td></tr>
+        <tr><td><code>specimen_cni_recto.jpg</code></td><td>Recto du spécimen de carte d'identité française</td><td><span class="chip pass">VERIFIED</span></td></tr>
+        <tr><td><code>specimen_cni_verso.jpg</code></td><td>Verso du même spécimen</td><td><span class="chip pass">VERIFIED</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note warn">
+    <b class="t">Arrêter le serveur avant de lancer les tests</b>
+    <p>Le serveur manuel et les tests utilisent le même port (5005). Autre possibilité : laisser le serveur tourner et lancer les tests avec <code>IDCHECK_START_MOCK=false .venv/bin/pytest</code>.</p>
+  </div>
+</section>
+
+<section id="config" aria-labelledby="h-config">
+  <div class="eyebrow">Configuration</div>
+  <h2 id="h-config">Paramètres</h2>
+  <p>Tous les réglages passent par des variables d'environnement, ou par le fichier <code>.env</code>. Une variable passée dans la commande l'emporte sur le fichier.</p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Variable</th><th>Défaut</th><th>Rôle</th></tr></thead>
+      <tbody>
+        <tr><td><code>IDCHECK_BASE_URL</code></td><td><code>http://127.0.0.1:5005</code></td><td>Adresse de l'application testée</td></tr>
+        <tr><td><code>IDCHECK_START_MOCK</code></td><td><code>true</code></td><td><code>true</code> : les tests démarrent le serveur eux-mêmes. <code>false</code> : ils utilisent celui qui tourne déjà à <code>IDCHECK_BASE_URL</code>.</td></tr>
+        <tr><td><code>IDCHECK_HEADLESS</code></td><td><code>true</code></td><td><code>false</code> pour voir la fenêtre Chrome</td></tr>
+        <tr><td><code>IDCHECK_BROWSER</code></td><td><code>chrome</code></td><td>Navigateur utilisé (seul Chrome est pris en charge)</td></tr>
+        <tr><td><code>IDCHECK_API_TIMEOUT</code></td><td><code>10</code></td><td>Délai maximum d'un appel API, en secondes</td></tr>
+        <tr><td><code>IDCHECK_UI_WAIT_TIMEOUT</code></td><td><code>10</code></td><td>Délai maximum d'attente d'un élément de page, en secondes</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Exemple : tester un autre environnement sans toucher au code.</p>
+  <div class="cmd"><pre>IDCHECK_START_MOCK=false IDCHECK_BASE_URL=http://recette.exemple:5005 .venv/bin/pytest</pre></div>
+</section>
+
+<section id="ajouter" aria-labelledby="h-add">
+  <div class="eyebrow">Faire évoluer</div>
+  <h2 id="h-add">Ajouter un cas de test</h2>
+  <h3>Nouvelle pièce d'identité</h3>
+  <p>Déposer le fichier dans <code>tests/fixtures/</code>, puis le déclarer dans <code>tests/support/documents.py</code> :</p>
+  <div class="cmd"><pre>PASSEPORT_SPECIMEN = DocumentScenario(
+    id="specimen-passeport",
+    file=FIXTURES_DIR / "specimen_passeport.jpg",
+    expected_status=Status.VERIFIED,
+)
+
+DOCUMENT_SCENARIOS = [..., PASSEPORT_SPECIMEN]</pre></div>
+  <p>C'est tout. La pièce est automatiquement testée par l'API et dans Chrome, soit 4 tests de plus.</p>
+  <h3>Nouveau test</h3>
+  <p>Ajouter une fonction <code>test_...</code> dans le fichier qui correspond. Les « fixtures » prêtes à l'emploi se reçoivent en paramètre :</p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Fixture</th><th>Fournit</th></tr></thead>
+      <tbody>
+        <tr><td><code>api_client</code></td><td>Le client pour appeler l'API (<code>create_session</code>, <code>submit_document</code>, <code>get_status</code>)</td></tr>
+        <tr><td><code>pending_session</code></td><td>Une session neuve, au statut <code>PENDING</code></td></tr>
+        <tr><td><code>make_document</code></td><td>Crée un fichier temporaire avec le nom et le contenu voulus</td></tr>
+        <tr><td><code>upload_page</code></td><td>La page d'envoi de pièce, pilotée dans Chrome</td></tr>
+        <tr><td><code>result_page</code></td><td>La page de résultat, pilotée dans Chrome</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="cmd"><pre>def test_pdf_document_is_verified(api_client, pending_session, make_document):
+    document = make_document("carte.pdf")
+
+    result = api_client.submit_document(pending_session.session_id, document)
+
+    assert result.status == Status.VERIFIED</pre></div>
+</section>
+
+<section id="projet" aria-labelledby="h-proj">
+  <div class="eyebrow">Référence</div>
+  <h2 id="h-proj">Organisation du projet</h2>
+<pre class="tree">identity-check-qa/
+├── .venv/                       <span class="c"># librairies installées (ne pas rendre avec l'exercice)</span>
+├── mock_server/app.py           <span class="c"># l'application testée (fournie, non modifiée)</span>
+├── src/idcheck_qa/
+│   ├── config.py                <span class="c"># lecture des variables IDCHECK_*</span>
+│   ├── api/                     <span class="c"># client API</span>
+│   └── ui/pages/                <span class="c"># pages pilotées par Selenium (Page Objects)</span>
+├── tests/
+│   ├── conftest.py              <span class="c"># démarrage du serveur, fixtures communes</span>
+│   ├── support/documents.py     <span class="c"># catalogue des pièces de test</span>
+│   ├── fixtures/                <span class="c"># fichiers de pièces</span>
+│   ├── api/                     <span class="c"># tests API</span>
+│   └── ui/                      <span class="c"># tests navigateur</span>
+├── pyproject.toml               <span class="c"># dépendances + réglages pytest</span>
+├── poetry.toml                  <span class="c"># .venv dans le projet</span>
+├── .env.example                 <span class="c"># modèle de configuration</span>
+├── test_report.html             <span class="c"># rapport de la dernière campagne</span>
+├── README.md
+└── AI_PROMPTS.md                <span class="c"># prompts IA utilisés (demandé par l'exercice)</span></pre>
+</section>
+
+<section id="problemes" aria-labelledby="h-pb">
+  <div class="eyebrow">Dépannage</div>
+  <h2 id="h-pb">Problèmes fréquents</h2>
+  <details>
+    <summary>« Cannot bind http://127.0.0.1:5005 »</summary>
+    <div>
+      <p>Un serveur tourne déjà sur le port 5005, souvent un serveur lancé à la main. Soit l'arrêter avec <code>Ctrl+C</code> dans son terminal, soit réutiliser ce serveur :</p>
+      <div class="cmd"><pre>IDCHECK_START_MOCK=false .venv/bin/pytest</pre></div>
+      <p>Pour trouver le processus qui occupe le port :</p>
+      <div class="cmd"><pre>ss -ltnp | grep 5005</pre></div>
+    </div>
+  </details>
+  <details>
+    <summary>« .venv/bin/pytest: No such file or directory »</summary>
+    <div><p>Le <code>.venv</code> n'est pas installé, ou la commande n'est pas lancée depuis le dossier du projet. Se placer dans le dossier, puis lancer <code>poetry install</code>.</p></div>
+  </details>
+  <details>
+    <summary>Les tests navigateur sont en ERROR au démarrage</summary>
+    <div>
+      <p>Au premier lancement, le pilote de Chrome (chromedriver) est téléchargé automatiquement : il faut une connexion Internet cette fois-là. Vérifier aussi que Chrome est installé avec <code>google-chrome --version</code>.</p>
+      <p>Les tests API fonctionnent sans Chrome : <code>.venv/bin/pytest -m api</code>.</p>
+    </div>
+  </details>
+  <details>
+    <summary>« poetry: command not found »</summary>
+    <div><p>Installer Poetry (étape 2 de l'<a href="#installation">installation</a>), puis ouvrir un nouveau terminal.</p></div>
+  </details>
+  <details>
+    <summary>Un test échoue avec « Expected status 'VERIFIED', last displayed: … »</summary>
+    <div><p>La page de résultat n'a pas affiché le statut attendu dans le délai prévu. Relancer le test seul avec <code>IDCHECK_HEADLESS=false</code> pour voir ce qui se passe à l'écran. Sur une machine lente, augmenter <code>IDCHECK_UI_WAIT_TIMEOUT</code>.</p></div>
+  </details>
+</section>
+
+<section id="securite" aria-labelledby="h-sec">
+  <div class="eyebrow">Sécurité</div>
+  <h2 id="h-sec">Règles à respecter</h2>
+  <ul style="margin: 0; padding-left: 1.2em; display: grid; gap: 8px; max-width: 70ch;">
+    <li><b>Jamais de vraie pièce d'identité</b> dans <code>tests/fixtures/</code>. Utiliser des fichiers factices ou des spécimens officiels marqués « SPÉCIMEN ».</li>
+    <li><b>Jamais de mot de passe ni de clé API dans le code.</b> Ils vont dans <code>.env</code>, qui n'est pas versionné, ou dans un coffre à secrets.</li>
+    <li><b>Ne pas rendre le dossier <code>.venv</code></b> avec l'exercice. Il est volumineux et propre à chaque machine ; le correcteur le recrée avec <code>poetry install</code>.</li>
+    <li>Contre un vrai service KYC : ne pas journaliser le contenu des pièces, ne pas faire de captures d'écran des pages de capture, et utiliser un environnement de test dédié.</li>
+  </ul>
+</section>
+
+<footer>Guide du projet identity-check-qa · octobre 2026. Les commandes supposent d'être dans le dossier du projet.</footer>
+
+</main>
+</div>
+
+<script>
+document.querySelectorAll(".cmd").forEach((block) => {
+  const pre = block.querySelector("pre");
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "copy";
+  btn.textContent = "Copier";
+  btn.addEventListener("click", () => {
+    const text = pre.innerText.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n").trim();
+    const done = () => { btn.textContent = "Copié"; setTimeout(() => (btn.textContent = "Copier"), 1500); };
+    const fallback = () => {
+      const range = document.createRange();
+      range.selectNodeContents(pre);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      btn.textContent = "Ctrl+C";
+    };
+    try {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } catch (e) { fallback(); }
+  });
+  block.append(btn);
+});
+</script>

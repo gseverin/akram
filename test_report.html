@@ -1,0 +1,432 @@
+<title>Recette identity-check-qa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: one reading column (~880px); a test-run report read top to bottom: verdict, figures, defects, detail, reproduction. */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --ink: #16202e;
+  --muted: #5a6678;
+  --line: #dde3eb;
+  --accent: #2d4e94;          /* bleu de la carte d'identité */
+  --accent-soft: #e6ecf7;
+  --pass: #1d7a4a;  --pass-soft: #e3f3ea;
+  --xfail: #a8610a; --xfail-soft: #fbefdc;
+  --fail: #b3261e;  --fail-soft: #fbe5e3;
+  --crit: #b3261e;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10151d; --surface: #171e29; --ink: #e4e9f1; --muted: #98a3b4; --line: #2a3442;
+    --accent: #8eaaf0; --accent-soft: #1d2a44;
+    --pass: #5cc98c; --pass-soft: #15301f;
+    --xfail: #f0b25a; --xfail-soft: #33240f;
+    --fail: #f2847b; --fail-soft: #3a1714; --crit: #f2847b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10151d; --surface: #171e29; --ink: #e4e9f1; --muted: #98a3b4; --line: #2a3442;
+  --accent: #8eaaf0; --accent-soft: #1d2a44;
+  --pass: #5cc98c; --pass-soft: #15301f;
+  --xfail: #f0b25a; --xfail-soft: #33240f;
+  --fail: #f2847b; --fail-soft: #3a1714; --crit: #f2847b;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 15px/1.6 var(--font-body);
+  padding-inline: 16px; padding-block: 0 64px;
+}
+.wrap { max-width: 880px; margin: 0 auto; display: grid; gap: 48px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h2 { font-size: 1.45rem; font-weight: 600; }
+h3 { font-size: 1.05rem; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--font-mono); font-size: .86em; }
+section { display: grid; gap: 16px; min-width: 0; }
+.eyebrow { font: 600 .72rem/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.lede { color: var(--muted); }
+
+/* Header with MRZ strip */
+header { padding-top: 40px; display: grid; gap: 18px; }
+header h1 { font-size: clamp(1.9rem, 5vw, 2.7rem); font-weight: 700; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 24px; color: var(--muted); font-size: .9rem; }
+.meta b { color: var(--ink); font-weight: 500; }
+.mrz {
+  font: 500 clamp(.62rem, 1.9vw, .9rem)/1.5 var(--font-mono);
+  letter-spacing: .14em; color: var(--muted);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+  padding: 10px 14px; overflow-x: auto; white-space: pre;
+}
+.verdict {
+  display: flex; gap: 14px; align-items: flex-start;
+  background: var(--pass-soft); border-radius: 8px; padding: 16px 18px;
+}
+.verdict .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--pass); margin-top: 7px; flex: none; }
+.verdict strong { display: block; font-family: var(--font-display); font-size: 1.15rem; }
+
+/* Figures */
+.figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.fig { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 2px; }
+.fig .n { font: 600 2rem/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+.fig .l { font-size: .84rem; color: var(--muted); }
+.fig.pass .n { color: var(--pass); } .fig.xfail .n { color: var(--xfail); } .fig.fail .n { color: var(--muted); }
+.bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--line); }
+.bar .p { background: var(--pass); } .bar .x { background: var(--xfail); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .84rem; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+@media (max-width: 620px) { .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Tables */
+.table-scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 .72rem/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: none; }
+td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+th.num { text-align: right; }
+
+/* Chips */
+.chip { display: inline-block; font: 600 .7rem/1 var(--font-mono); letter-spacing: .06em; padding: 5px 8px; border-radius: 4px; white-space: nowrap; }
+.chip.pass { color: var(--pass); background: var(--pass-soft); }
+.chip.xfail { color: var(--xfail); background: var(--xfail-soft); }
+.chip.crit { color: var(--crit); background: var(--fail-soft); }
+.chip.high { color: var(--xfail); background: var(--xfail-soft); }
+.chip.med { color: var(--accent); background: var(--accent-soft); }
+
+/* Defects */
+.defects { display: grid; gap: 12px; }
+.defect { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: grid; gap: 8px; min-width: 0; }
+.defect-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.defect-head .id { font: 600 .8rem/1 var(--font-mono); color: var(--muted); }
+.defect dl { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: .9rem; }
+.defect dt { color: var(--muted); }
+.defect dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 520px) { .defect dl { grid-template-columns: 1fr; } .defect dd { margin-bottom: 6px; } }
+
+/* Test list */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.filters button {
+  font: 500 .85rem/1 var(--font-body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; cursor: pointer;
+}
+.filters button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.filters button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.group { display: grid; gap: 6px; }
+.group h3 { font-family: var(--font-mono); font-size: .82rem; font-weight: 600; color: var(--muted); }
+.tests { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.tests li { display: flex; gap: 12px; align-items: baseline; padding: 9px 14px; border-bottom: 1px solid var(--line); min-width: 0; }
+.tests li:last-child { border-bottom: none; }
+.tests .name { font: .82rem/1.45 var(--font-mono); overflow-wrap: anywhere; min-width: 0; flex: 1; }
+.tests .name small { color: var(--muted); font-size: 1em; }
+.tests .chip { flex: none; width: 62px; text-align: center; }
+.tests .tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.tag { font: .68rem/1 var(--font-mono); color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 3px 5px; }
+@media (max-width: 560px) { .tests li { flex-wrap: wrap; } .tests .tags { width: 100%; justify-content: flex-start; padding-left: 74px; } }
+
+/* Misc */
+ul.plain { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; max-width: 70ch; }
+pre.cmd {
+  margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  padding: 14px 16px; overflow-x: auto; font: .84rem/1.6 var(--font-mono);
+}
+pre.cmd .c { color: var(--muted); }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 620px) { .two { grid-template-columns: 1fr; } }
+.kv { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 16px; font-size: .9rem; align-content: start; }
+.kv span:nth-child(odd) { color: var(--muted); }
+footer { color: var(--muted); font-size: .84rem; border-top: 1px solid var(--line); padding-top: 16px; }
+@media (prefers-reduced-motion: no-preference) { .filters button { transition: background .15s, color .15s; } }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Rapport de recette · tests automatisés</div>
+  <h1>Recette identity-check-qa</h1>
+  <div class="meta">
+    <span>Exécution <b>5 octobre 2026</b></span>
+    <span>Cible <b>mock_server (Flask) · 127.0.0.1:5005</b></span>
+    <span>Durée <b>≈ 4,5 s</b></span>
+    <span>Navigateur <b>Chrome 147 headless</b></span>
+  </div>
+  <div class="mrz" aria-label="Résumé au format MRZ">QARPT&lt;IDCHECK&lt;&lt;20261005&lt;&lt;42T&lt;37P&lt;5X&lt;0F&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+API&lt;&lt;29&lt;UI&lt;&lt;13&lt;&lt;DEFECTS&lt;&lt;5&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+  <div class="verdict">
+    <span class="dot" aria-hidden="true"></span>
+    <div>
+      <strong>Le parcours de vérification fonctionne. 5 défauts produit sont identifiés.</strong>
+      <p>Les parcours nominaux (pièce acceptée, pièce refusée) passent de bout en bout, côté API comme côté navigateur. Aucun test n'échoue. Les 5 tests marqués « défaut connu » prouvent des comportements incorrects de l'application, dont un critique : une pièce refusée peut être validée en la renvoyant.</p>
+    </div>
+  </div>
+</header>
+
+<section aria-labelledby="s-synth">
+  <div class="eyebrow">Synthèse</div>
+  <h2 id="s-synth">42 tests exécutés</h2>
+  <div class="figures">
+    <div class="fig"><span class="n">42</span><span class="l">tests exécutés</span></div>
+    <div class="fig pass"><span class="n">37</span><span class="l">réussis</span></div>
+    <div class="fig xfail"><span class="n">5</span><span class="l">défauts produit confirmés (xfail)</span></div>
+    <div class="fig fail"><span class="n">0</span><span class="l">échecs ou erreurs</span></div>
+  </div>
+  <div class="bar" role="img" aria-label="37 réussis sur 42, 5 défauts connus">
+    <span class="p" style="width: 88.1%"></span><span class="x" style="width: 11.9%"></span>
+  </div>
+  <div class="legend">
+    <span><i style="background: var(--pass)"></i>Réussi : le comportement attendu est constaté</span>
+    <span><i style="background: var(--xfail)"></i>Défaut connu : le test échoue comme prévu et prouve le défaut</span>
+  </div>
+</section>
+
+<section aria-labelledby="s-cov">
+  <div class="eyebrow">Couverture</div>
+  <h2 id="s-cov">Ce qui a été vérifié</h2>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Domaine</th><th>Ce qui est vérifié</th><th class="num">Tests</th><th class="num">Réussis</th><th class="num">Défauts</th></tr></thead>
+      <tbody>
+        <tr><td>API · sessions</td><td>Création (201, statut <code>PENDING</code>), format des réponses, unicité des identifiants, session inconnue (404), mauvaise méthode HTTP (405)</td><td class="num">10</td><td class="num">10</td><td class="num">0</td></tr>
+        <tr><td>API · envoi de pièce</td><td>Décision <code>VERIFIED</code> / <code>REJECTED</code> et motif, persistance, isolation entre sessions, variantes de fichiers, envois anormaux ou hors séquence</td><td class="num">19</td><td class="num">16</td><td class="num">3</td></tr>
+        <tr><td>Navigateur · parcours complet</td><td>Session créée par API, pièce envoyée dans Chrome, résultat contrôlé sur la page et par l'API ; page de résultat pour chaque statut</td><td class="num">10</td><td class="num">10</td><td class="num">0</td></tr>
+        <tr><td>Navigateur · page d'envoi</td><td>Envoi sans fichier, session inexistante, injection HTML dans l'URL</td><td class="num">3</td><td class="num">1</td><td class="num">2</td></tr>
+        <tr><td><b>Total</b></td><td></td><td class="num"><b>42</b></td><td class="num"><b>37</b></td><td class="num"><b>5</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="lede">Chaque pièce de test (fichier valide, fichier invalide, recto et verso de la carte spécimen) est rejouée à la fois par l'API et dans le navigateur.</p>
+</section>
+
+<section aria-labelledby="s-def">
+  <div class="eyebrow">Anomalies</div>
+  <h2 id="s-def">Défauts trouvés dans l'application</h2>
+  <p class="lede">Classés du plus grave au moins grave. Gravité évaluée pour un vrai service de vérification d'identité (KYC).</p>
+  <div class="defects">
+
+    <article class="defect">
+      <div class="defect-head"><span class="id">DEF-01</span><span class="chip crit">CRITIQUE</span><h3>Une pièce refusée peut être validée en la renvoyant</h3></div>
+      <dl>
+        <dt>Constat</dt><dd>Une session <code>REJECTED</code> accepte un nouvel envoi et passe à <code>VERIFIED</code>. La décision finale est écrasée.</dd>
+        <dt>Attendu</dt><dd>Une décision finale est définitive : nouvel envoi refusé (erreur 409) ou statut inchangé.</dd>
+        <dt>Risque</dt><dd>Contournement de la vérification : un fraudeur réessaie jusqu'à être accepté.</dd>
+        <dt>Test</dt><dd><code>test_rejected_session_cannot_be_overturned_by_resubmission</code></dd>
+      </dl>
+    </article>
+
+    <article class="defect">
+      <div class="defect-head"><span class="id">DEF-02</span><span class="chip high">ÉLEVÉE</span><h3>Un envoi sans aucune pièce est accepté</h3></div>
+      <dl>
+        <dt>Constat</dt><dd>Un <code>POST /api/sessions/{id}/document</code> sans fichier renvoie <code>VERIFIED</code>.</dd>
+        <dt>Attendu</dt><dd>Erreur 400 (pièce manquante), session toujours <code>PENDING</code>.</dd>
+        <dt>Test</dt><dd><code>test_submission_without_document_is_not_verified</code></dd>
+      </dl>
+    </article>
+
+    <article class="defect">
+      <div class="defect-head"><span class="id">DEF-03</span><span class="chip high">ÉLEVÉE</span><h3>Le bouton d'envoi fonctionne sans pièce sélectionnée</h3></div>
+      <dl>
+        <dt>Constat</dt><dd>Sur la page d'envoi, « Submit capture » sans fichier envoie le texte <code>undefined</code>, et la session devient <code>VERIFIED</code>.</dd>
+        <dt>Attendu</dt><dd>Bouton désactivé ou message d'erreur tant qu'aucune pièce n'est capturée.</dd>
+        <dt>Test</dt><dd><code>test_submit_without_capture_does_not_verify</code></dd>
+      </dl>
+    </article>
+
+    <article class="defect">
+      <div class="defect-head"><span class="id">DEF-04</span><span class="chip high">ÉLEVÉE</span><h3>Un fichier vide est accepté</h3></div>
+      <dl>
+        <dt>Constat</dt><dd>Un fichier de 0 octet nommé <code>id.jpg</code> est <code>VERIFIED</code>. Le contenu n'est jamais examiné.</dd>
+        <dt>Attendu</dt><dd>Rejet (fichier vide ou illisible).</dd>
+        <dt>Test</dt><dd><code>test_empty_document_is_not_verified</code></dd>
+      </dl>
+    </article>
+
+    <article class="defect">
+      <div class="defect-head"><span class="id">DEF-05</span><span class="chip med">MOYENNE</span><h3>La page d'envoi s'affiche pour une session inexistante</h3></div>
+      <dl>
+        <dt>Constat</dt><dd><code>/verify/000000000000</code> affiche le formulaire de capture alors que la session n'existe pas.</dd>
+        <dt>Attendu</dt><dd>Message d'erreur (lien invalide ou expiré), pas de formulaire.</dd>
+        <dt>Test</dt><dd><code>test_capture_page_for_unknown_session_shows_an_error</code></dd>
+      </dl>
+    </article>
+  </div>
+
+  <h3>Autres observations</h3>
+  <ul class="plain">
+    <li>La décision dépend uniquement du <b>nom du fichier</b> (présence de « invalid »). La même image de carte spécimen est acceptée sous le nom <code>specimen_cni_recto.jpg</code> et refusée sous le nom <code>cni_invalid.jpg</code>. Normal pour un mock, mais à signaler contre un vrai service.</li>
+    <li>Les identifiants de session font 12 caractères hexadécimaux (48 bits). Ils servent aussi de lien d'accès à la page de capture : en production, il faudrait un jeton plus long et une expiration.</li>
+    <li>Point positif : l'identifiant affiché dans la page est correctement échappé. Une tentative d'injection HTML via l'URL n'a aucun effet.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="s-detail">
+  <div class="eyebrow">Détail</div>
+  <h2 id="s-detail">Résultat de chaque test</h2>
+  <div class="filters" role="group" aria-label="Filtrer les tests">
+    <button type="button" id="f-all" data-filter="all" aria-pressed="true">Tous (42)</button>
+    <button type="button" id="f-pass" data-filter="pass" aria-pressed="false">Réussis (37)</button>
+    <button type="button" id="f-xfail" data-filter="xfail" aria-pressed="false">Défauts connus (5)</button>
+  </div>
+  <div id="test-groups" class="group-list" style="display: grid; gap: 20px;"></div>
+</section>
+
+<section aria-labelledby="s-data">
+  <div class="eyebrow">Données de test</div>
+  <h2 id="s-data">Pièces utilisées</h2>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Fichier</th><th>Nature</th><th>Résultat attendu</th></tr></thead>
+      <tbody>
+        <tr><td><code>valid_id.jpg</code></td><td>Fichier factice fourni par l'exercice</td><td><span class="chip pass">VERIFIED</span></td></tr>
+        <tr><td><code>invalid_id.jpg</code></td><td>Fichier factice fourni par l'exercice</td><td><span class="chip crit">REJECTED</span> <code>document_unreadable</code></td></tr>
+        <tr><td><code>specimen_cni_recto.jpg</code></td><td>Recto du spécimen officiel de la carte d'identité française (JPEG 600×379)</td><td><span class="chip pass">VERIFIED</span></td></tr>
+        <tr><td><code>specimen_cni_verso.jpg</code></td><td>Verso du même spécimen (JPEG 600×377)</td><td><span class="chip pass">VERIFIED</span></td></tr>
+        <tr><td>Fichiers générés</td><td>Créés à la volée dans un dossier temporaire : variantes de nom, fichier vide, spécimen renommé</td><td>Selon le cas</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="lede">Aucune donnée personnelle réelle. Les cartes sont des spécimens publics, marqués « SPÉCIMEN », au nom d'une titulaire fictive. Les références demandeur sont aléatoires (<code>qa-auto-xxxxxxxx</code>).</p>
+</section>
+
+<section aria-labelledby="s-env">
+  <div class="eyebrow">Reproduire</div>
+  <h2 id="s-env">Environnement et commandes</h2>
+  <div class="two">
+    <div class="kv">
+      <span>Python</span><span>3.13.3, virtualenv <code>./.venv</code></span>
+      <span>pytest</span><span>8.4.2 + pytest-html 4.2.0</span>
+      <span>Selenium</span><span>4.46.0</span>
+      <span>Navigateur</span><span>Chrome 147, headless</span>
+      <span>Flask</span><span>3.1.3</span>
+      <span>requests</span><span>2.34.2</span>
+    </div>
+    <div class="kv">
+      <span>Système</span><span>Linux 6.14</span>
+      <span>Serveur</span><span>Démarré par les tests ou externe (<code>IDCHECK_START_MOCK=false</code>)</span>
+      <span>Config</span><span>Variables d'environnement / <code>.env</code></span>
+      <span>Stabilité</span><span>Tests navigateur relancés 3 fois de suite sans échec</span>
+    </div>
+  </div>
+<pre class="cmd"><span class="c"># installation (crée ./.venv)</span>
+poetry install
+
+<span class="c"># toute la suite + rapport HTML technique</span>
+.venv/bin/pytest --html=htmlreport.html --self-contained-html
+
+<span class="c"># sous-ensembles</span>
+.venv/bin/pytest -m smoke
+.venv/bin/pytest -m api
+.venv/bin/pytest -m "not known_defect"</pre>
+</section>
+
+<footer>Rapport établi à partir de l'exécution pytest du 5 octobre 2026 sur le projet identity-check-qa. Les défauts sont suivis par des tests <code>xfail(strict=True)</code> : dès qu'un défaut sera corrigé, son test passera en échec pour signaler qu'il faut retirer le marqueur.</footer>
+
+</div>
+
+<script>
+const GROUPS = [
+  ["tests/api/test_document_submission.py", "api", [
+    ["test_submission_decides_outcome", "valid-document", "pass", ["smoke"]],
+    ["test_submission_decides_outcome", "invalid-document", "pass", ["smoke"]],
+    ["test_submission_decides_outcome", "specimen-cni-front", "pass", ["smoke"]],
+    ["test_submission_decides_outcome", "specimen-cni-back", "pass", ["smoke"]],
+    ["test_outcome_is_persisted_and_readable_via_status", "valid-document", "pass", []],
+    ["test_outcome_is_persisted_and_readable_via_status", "invalid-document", "pass", []],
+    ["test_outcome_is_persisted_and_readable_via_status", "specimen-cni-front", "pass", []],
+    ["test_outcome_is_persisted_and_readable_via_status", "specimen-cni-back", "pass", []],
+    ["test_submission_only_affects_its_own_session", "", "pass", []],
+    ["test_outcome_rule_variants", "INVALID_ID.JPG-REJECTED", "pass", []],
+    ["test_outcome_rule_variants", "scan-invalid.png-REJECTED", "pass", []],
+    ["test_outcome_rule_variants", "passport_front.jpg-VERIFIED", "pass", []],
+    ["test_outcome_rule_variants", "id.pdf-VERIFIED", "pass", []],
+    ["test_real_image_is_still_judged_by_filename", "", "pass", []],
+    ["test_submit_to_unknown_session_returns_404", "", "pass", ["negative"]],
+    ["test_submission_without_document_is_not_verified", "", "xfail", ["negative", "DEF-02"]],
+    ["test_empty_document_is_not_verified", "", "xfail", ["negative", "DEF-04"]],
+    ["test_rejected_session_cannot_be_overturned_by_resubmission", "", "xfail", ["negative", "DEF-01"]],
+    ["test_document_endpoint_rejects_get", "", "pass", ["negative"]],
+  ]],
+  ["tests/api/test_sessions.py", "api", [
+    ["test_create_session_returns_pending_session", "", "pass", ["smoke"]],
+    ["test_create_session_responds_201_with_json", "", "pass", []],
+    ["test_new_session_status_is_pending_without_reason", "", "pass", []],
+    ["test_status_response_shape", "", "pass", []],
+    ["test_session_ids_are_unique", "", "pass", []],
+    ["test_get_status_of_unknown_session_returns_404", "well-formed-unknown", "pass", ["negative"]],
+    ["test_get_status_of_unknown_session_returns_404", "malformed", "pass", ["negative"]],
+    ["test_get_status_of_unknown_session_returns_404", "wrong-case", "pass", ["negative"]],
+    ["test_get_status_of_unknown_session_returns_404", "very-long", "pass", ["negative"]],
+    ["test_status_is_not_reachable_with_post", "", "pass", ["negative"]],
+  ]],
+  ["tests/ui/test_upload_page.py", "ui", [
+    ["test_submit_without_capture_does_not_verify", "", "xfail", ["negative", "DEF-03"]],
+    ["test_capture_page_for_unknown_session_shows_an_error", "", "xfail", ["negative", "DEF-05"]],
+    ["test_session_id_in_url_is_html_escaped", "", "pass", ["security"]],
+  ]],
+  ["tests/ui/test_verification_flow.py", "ui · e2e", [
+    ["test_capture_flow_reaches_expected_outcome", "valid-document", "pass", ["smoke"]],
+    ["test_capture_flow_reaches_expected_outcome", "invalid-document", "pass", ["smoke"]],
+    ["test_capture_flow_reaches_expected_outcome", "specimen-cni-front", "pass", ["smoke"]],
+    ["test_capture_flow_reaches_expected_outcome", "specimen-cni-back", "pass", ["smoke"]],
+    ["test_result_page_reflects_api_decision", "valid-document", "pass", []],
+    ["test_result_page_reflects_api_decision", "invalid-document", "pass", []],
+    ["test_result_page_reflects_api_decision", "specimen-cni-front", "pass", []],
+    ["test_result_page_reflects_api_decision", "specimen-cni-back", "pass", []],
+    ["test_result_page_of_session_not_yet_submitted_shows_pending", "", "pass", []],
+    ["test_result_page_of_unknown_session_shows_unknown", "", "pass", ["negative"]],
+  ]],
+];
+
+const LABEL = { pass: "RÉUSSI", xfail: "DÉFAUT" };
+const container = document.getElementById("test-groups");
+
+function el(tag, cls, text) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+for (const [file, layer, tests] of GROUPS) {
+  const group = el("div", "group");
+  group.append(el("h3", "", `${file}  ·  ${layer}`));
+  const list = el("ul", "tests");
+  for (const [name, param, status, tags] of tests) {
+    const li = el("li");
+    li.dataset.status = status;
+    li.append(el("span", `chip ${status}`, LABEL[status]));
+    const n = el("span", "name", name);
+    if (param) n.append(el("small", "", `[${param}]`));
+    li.append(n);
+    const t = el("span", "tags");
+    for (const tag of tags) t.append(el("span", "tag", tag));
+    li.append(t);
+    list.append(li);
+  }
+  group.append(list);
+  container.append(group);
+}
+
+document.querySelectorAll(".filters button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const f = btn.dataset.filter;
+    document.querySelectorAll(".filters button").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+    document.querySelectorAll(".group").forEach((g) => {
+      let visible = 0;
+      g.querySelectorAll("li").forEach((li) => {
+        const show = f === "all" || li.dataset.status === f;
+        li.hidden = !show;
+        if (show) visible++;
+      });
+      g.hidden = visible === 0;
+    });
+  });
+});
+</script>

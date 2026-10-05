@@ -1,0 +1,5 @@
+[virtualenvs]
+use-poetry-python = true
+# Create the virtualenv inside the project (./.venv) so every dependency
+# lives with the checkout and IDEs pick it up automatically.
+in-project = true
